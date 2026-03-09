@@ -155,10 +155,9 @@ export default function ProfileScreen({ onBack }) {
         setTrades(updated);
     }
 
-    const MARKET_FEE = 0.8; // Crossout Mobile berie 20% z predajnej ceny
     const openTrades = trades.filter(t => t.status === 'open');
     const closedTrades = trades.filter(t => t.status === 'closed');
-    const totalPnL = closedTrades.reduce((sum, t) => sum + ((t.soldAt * MARKET_FEE) - t.boughtAt), 0);
+    const totalPnL = closedTrades.reduce((sum, t) => sum + (t.soldAt - t.boughtAt), 0);
     const getItemName = (itemId) => items.find(i => i.id === itemId)?.name || itemId;
     const formatCoins = (n) => n?.toLocaleString('sk-SK') || '—';
 
@@ -227,9 +226,8 @@ export default function ProfileScreen({ onBack }) {
                                         if (!itemId) return;
                                         const prices = await getPrices(itemId, 1);
                                         if (prices.length) {
-                                            const current = prices[0].sale;
-                                            const breakEven = Math.ceil(current / MARKET_FEE);
-                                            setTradeForm({ itemId, boughtAt: current, targetSell: breakEven, note: tradeForm.note });
+                                            const current = prices[0].purchase;
+                                            setTradeForm({ itemId, boughtAt: current, targetSell: current, note: tradeForm.note });
                                         }
                                     }}
                                     className="bg-cx-bg border border-cx-border rounded p-2 text-sm text-cx-text outline-none focus:border-cx-orange">
@@ -270,9 +268,9 @@ export default function ProfileScreen({ onBack }) {
                         <div className="flex flex-col gap-2 mb-4">
                             {openTrades.map(trade => {
                                 const current = currentPrices[trade.itemId];
-                                const pnlTarget = (trade.targetSell * MARKET_FEE) - trade.boughtAt;
+                                const pnlTarget = trade.targetSell - trade.boughtAt;
                                 const pnlTargetPct = ((pnlTarget / trade.boughtAt) * 100).toFixed(1);
-                                const pnlCurrent = current != null ? (current * MARKET_FEE) - trade.boughtAt : null;
+                                const pnlCurrent = current != null ? current - trade.boughtAt : null;
                                 const pnlCurrentPct = pnlCurrent != null ? ((pnlCurrent / trade.boughtAt) * 100).toFixed(1) : null;
 
                                 return (
@@ -320,7 +318,7 @@ export default function ProfileScreen({ onBack }) {
                                                     </div>
                                                     <div className="flex justify-between text-xs">
                                                         <span className="text-cx-muted">Break-even <span className="text-cx-muted/50 text-[10px]">min. SALE cena bez straty</span></span>
-                                                        <span className="text-cx-text">{formatCoins(Math.ceil(trade.boughtAt / MARKET_FEE))}</span>
+                                                        <span className="text-cx-text">{formatCoins(trade.boughtAt)}</span>
                                                     </div>
                                                     <div className="flex justify-between text-xs">
                                                         <span className="text-cx-muted">Cieľ predaja</span>
@@ -395,7 +393,7 @@ export default function ProfileScreen({ onBack }) {
                             </div>
                             <div className="flex flex-col gap-2">
                                 {closedTrades.map(trade => {
-                                    const pnl = (trade.soldAt * MARKET_FEE) - trade.boughtAt;
+                                    const pnl = trade.soldAt - trade.boughtAt;
                                     const pnlPct = ((pnl / trade.boughtAt) * 100).toFixed(1);
                                     return (
                                         <div key={trade.id} className="bg-cx-surface border border-cx-border rounded-lg p-3 opacity-70">
