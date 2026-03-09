@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Pomocná funkcia — overí či je user prihlásený
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    // Pomocná funkcia — overí či je user admin
+    function isAdmin() {
+      return isLoggedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Users — čítať môže len prihlásený, písať len admin
+    match /users/{userId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+      // User môže vytvoriť vlastný dokument (auto-create pri prvom logine)
+      allow create: if isLoggedIn() && request.auth.uid == userId;
+      // User môže aktualizovať vlastný lastSeen a avatarId
+      allow update: if isLoggedIn() && request.auth.uid == userId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['lastSeen', 'avatarId', 'displayName']);
+    }
+
+    // Items — čítať môže prihlásený, písať len admin
+    match /items/{itemId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+
+      // Prices — čítať môže prihlásený, písať môže prihlásený
+      match /prices/{priceId} {
+        allow read: if isLoggedIn();
+        allow write: if isLoggedIn();
+      }
+    }
+
+    // Upload log — čítať a písať môže prihlásený
+    match /uploadLog/{logId} {
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn();
+    }
+
+    // Market Events — čítať môže prihlásený, písať len admin
+    match /marketEvents/{eventId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+
+    // Trades — každý user číta/píše len svoje vlastné záznamy
+    match /trades/{tradeId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.uid;
+    }
+  }
+}
